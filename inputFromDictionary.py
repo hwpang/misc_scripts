@@ -35,8 +35,12 @@ if __name__ == '__main__':
     
     addedMoleFractions = {}
     for key, spec in speciesDict.items():
-        rmg.initialSpecies.append(spec)
-        addedMoleFractions[spec] = 0
+        for existing in rmg.initialSpecies:
+            if spec.isIsomorphic(existing):
+                break
+        else:
+            rmg.initialSpecies.append(spec)
+            addedMoleFractions[spec] = 0
     
     for system in rmg.reactionSystems:
         system.initialMoleFractions.update(addedMoleFractions)

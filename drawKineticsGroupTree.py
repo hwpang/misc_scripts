@@ -55,22 +55,8 @@ def drawGroup(label, group):
     elif not os.path.exists('images'):
         os.makedirs('images')
 
-    graph = pydot.Dot(graph_type='graph', dpi="52")
-    for index, atom in enumerate(group.atoms):
-        atomType = '{0!s} '.format(atom.label if atom.label != '' else '')
-        atomType += ','.join([atomType.label for atomType in atom.atomType])
-        atomType = '"' + atomType + '"'
-        graph.add_node(pydot.Node(name=str(index + 1), label=atomType, fontname="Helvetica", fontsize="16"))
-    for atom1 in group.atoms:
-        for atom2, bond in atom1.bonds.iteritems():
-            index1 = group.atoms.index(atom1)
-            index2 = group.atoms.index(atom2)
-            if index1 < index2:
-                bondType = ','.join([order for order in bond.order])
-                bondType = '"' + bondType + '"'
-                graph.add_edge(pydot.Edge(src=str(index1 + 1), dst=str(index2 + 1), label=bondType, fontname="Helvetica", fontsize="16"))
-
-    graph.write_png(path, prog='neato')
+    with open(path, 'w') as f:
+        f.write(group.draw('png'))
 
     return path
 
