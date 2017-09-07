@@ -98,9 +98,15 @@ for s0, r0, p0, d0 in combos:
     print label
 
     # Create a new group, starting with the multiple bond
-    new_group = Group().fromAdjacencyList("""
+    if r0 == 6 and d0 == 0:
+        new_group = Group().fromAdjacencyList("""
 1 *3 R!H u0 r1 {2,[D,T,B]}
 2 *2 R!H u0 r1 {1,[D,T,B]}
+""")
+    else:
+        new_group = Group().fromAdjacencyList("""
+1 *3 R!H u0 r1 {2,[D,T]}
+2 *2 R!H u0 r1 {1,[D,T]}
 """)
 
     # Calculate number of atoms to add
@@ -240,4 +246,4 @@ family.groups.entries = new_entries
 
 family.groups.top[0] = new_entries['Rn_cyclic']
 
-family.saveGroups('/home/mjliu/Code/groups.py')
+family.saveGroups('/home/mjliu/Code/RMG-database/input/kinetics/families/Intra_R_Add_Polycyclic/groups.py')

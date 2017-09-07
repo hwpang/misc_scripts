@@ -6,7 +6,7 @@ import os
 import rmgpy
 from rmgpy.data.rmg import RMGDatabase
 from rmgpy.reaction import Reaction
-from rmgpy.data.kinetics.common import UndeterminableKineticsError
+from rmgpy.exceptions import UndeterminableKineticsError
 
 
 source = ['Intra_R_Add_Endocyclic', 'Intra_R_Add_Exocyclic']
@@ -76,7 +76,25 @@ depository = database.kinetics.families[destination[0]].getTrainingDepository()
 start = max(depository.entries.keys()) + 1
 
 for i, entry in enumerate(toMove):
-    depository.entries[start + i] = entry
+    valid = True
+    for spc in entry.item.reactants + entry.item.products:
+        if family.isMoleculeForbidden(spc.molecule[0]):
+            print 'Training reaction is forbidden in destination: {}'.format(entry)
+            valid = False
+
+    try:
+        template = family.getReactionTemplate(entry.item)
+    except UndeterminableKineticsError:
+        item = Reaction(reactants=entry.item.products, products=entry.item.reactants)
+
+        try:
+            template = family.getReactionTemplate(item)
+        except UndeterminableKineticsError:
+            print 'Training reaction does not fit in destination: {}'.format(entry)
+            valid = False
+
+    if valid:
+        depository.entries[start + i] = entry
 
 path = os.path.join(databasePath, 'kinetics/families')
 
