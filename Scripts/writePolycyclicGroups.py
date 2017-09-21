@@ -127,7 +127,7 @@ for s0, r0, p0, d0 in combos:
         if s0 == 0:
             for atom in atoms:
                 atom.props['inRing'] = True
-        elif s0 > 1:
+        elif s0 > 0:
             for atom in atoms[0:s0 - 1]:
                 atom.props['inRing'] = False
             for atom in atoms[s0:]:
@@ -241,8 +241,6 @@ get_children('Rn_cyclic', entry_dict)
 
 for key, value in new_entries.iteritems():
     family.groups.entries[key] = value
-
-family.groups.entries = new_entries
 
 family.groups.top[0] = new_entries['Rn_cyclic']
 
