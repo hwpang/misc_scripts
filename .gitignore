@@ -15,3 +15,9 @@
 # ipython checkpoints
 **/.ipynb_checkpoints/**
 
+# temp directories
+temp/**
+
+# images
+*.png
+
