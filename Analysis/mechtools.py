@@ -8,10 +8,13 @@ working with an RMG generated chemical mechanism.
 
 from __future__ import print_function
 from collections import OrderedDict
-from IPython.display import display, HTML
 from base64 import b64encode
 
-from rmgpy.chemkin import loadChemkinFile, loadSpeciesDictionary
+from IPython.display import display, HTML
+import matplotlib.pyplot as plt
+import numpy as np
+
+from rmgpy.chemkin import loadChemkinFile, loadSpeciesDictionary, getSpeciesIdentifier
 from rmgpy.molecule import Molecule
 from rmgpy.species import Species
 
@@ -42,7 +45,7 @@ class Model(object):
             self.load_species()
 
     @staticmethod
-    def display_species_html(species_list):
+    def display_species_html(species_list, data=False):
         """Make an html table of species labels and drawings"""
         html = ['<table>']
         html += ['<tr>'
@@ -50,26 +53,30 @@ class Model(object):
                  '</tr>'.format(2, len(species_list))]
         for species in species_list:
             if species is not None:
-                html += ['<tr><td colspan="{0}">{1}</td>'.format(1, species.label)]
-                html += ['<td colspan="{0}">'
-                         '<img src="data:image/png;base64,{1}">'
+                html += ['<tr><td colspan="{0}" style="text-align:center;">{1}</td>'.format(1, species.label)]
+                html += ['<td colspan="{0}" style="text-align:center;">'
+                         '<img style="display:inline;" src="data:image/png;base64,{1}">'
                          '</td></tr>'.format(1, b64encode(species._repr_png_()))]
+                if data:
+                    html += ['<tr><td colspan="{0}" style="text-align:left;">{1}</td></tr>'.format(2, species.thermo)]
         html += ['</table>']
 
         display(HTML(''.join(html)))
 
     @staticmethod
-    def display_reaction_html(reaction_list):
+    def display_reaction_html(reaction_list, data=False):
         """Make an html table of reaction labels and drawings"""
         html = ['<table>']
         html += ['<tr>'
                  '<th colspan="{0}" style="text-align:left;">Total {1} Reactions</th>'
                  '</tr>'.format(2, len(reaction_list))]
         for reaction in reaction_list:
-            html += ['<tr><td colspan="{0}">{1}</td>'.format(1, reaction.toChemkin(kinetics=False))]
-            html += ['<td colspan="{0}">'
-                     '<img src="data:image/png;base64,{1}">'
+            html += ['<tr><td colspan="{0}" style="text-align:center;">{1}</td>'.format(1, reaction.label)]
+            html += ['<td colspan="{0}" style="text-align:center;">'
+                     '<img style="display:inline;" src="data:image/png;base64,{1}">'
                      '</td></tr>'.format(1, b64encode(reaction._repr_png_()))]
+            if data:
+                html += ['<tr><td colspan="{0}" style="text-align:left;">{1}</td></tr>'.format(2, reaction.kinetics)]
         html += ['</table>']
 
         display(HTML(''.join(html)))
@@ -162,11 +169,10 @@ class Model(object):
 
     def load_model(self):
         """Load model from Chemkin file"""
-        self.species, self.reactions = loadChemkinFile(self.chem_path, self.dict_path,
-                                                       useChemkinNames=True,
-                                                       checkDuplicates=False)
-        self.species_dict = self._species_list_to_dict(self.species)
-        self.sort_by_formula()
+        self.species, self.reactions = loadChemkinFile(self.chem_path, self.dict_path)
+        self.update_all_labels()
+        self.update_species_dict()
+        self.update_formula_dict()
 
     def load_species(self):
         """
@@ -193,15 +199,52 @@ class Model(object):
                     self.species_dict[label] = species
 
         self.species = self.species_dict.values()
-        self.sort_by_formula()
+        self.update_formula_dict()
 
-    def show_reactions(self, item=None):
+    @staticmethod
+    def plot_kinetics(reaction, T=None, P=None):
+        """Plot reaction kinetics"""
+        if T is None:
+            tlist = np.linspace(298, 2000, 20)
+        elif isinstance(T, (float, int)):
+            tlist = np.array([T])
+        else:
+            # Assume its a list or array
+            tlist = T
+        if P is None:
+            plist = [1e5]
+        elif isinstance(P, (float, int)):
+            plist = [P]
+        else:
+            # Assume its a list or array
+            plist = P
+
+        plt.figure()
+
+        x = 1000 / tlist
+        for p in plist:
+            k = []
+            for t in tlist:
+                k.append(reaction.kinetics.getRateCoefficient(t, p))
+
+            y = np.log10(k)
+            plt.plot(x, y, label='P={0} Pa'.format(p))
+
+        plt.xlabel('1000/T (K)')
+        plt.ylabel('log(k)')
+        plt.title(reaction.label)
+        plt.legend()
+        plt.show()
+
+    def show_reactions(self, item=None, data=False):
         """
         Display table of reactions. Can optionally provide any of the following:
 
           - single Species object to search for
           - list of labels or identifiers to search for
           - chemical formula to search for
+
+        If ``kinetics=True``, will also display reaction kinetics.
         """
         if item is None:
             species_list = self.species
@@ -210,41 +253,39 @@ class Model(object):
 
         reaction_list = self.get_reactions_by_species(species_list)
 
-        self.display_reaction_html(reaction_list)
+        self.display_reaction_html(reaction_list, data=data)
 
-    def show_species(self, item=None):
+    def show_species(self, item=None, data=False):
         """
         Display table of species. Can optionally provide any of the following:
 
           - single Species object to display
           - list of labels or identifiers to display
           - chemical formula to display
+
+        If ``thermo=True``, will also display species thermo.
         """
         if item is None:
             species_list = self.species
         else:
             species_list = self.get_species(item)
 
-        self.display_species_html(species_list)
+        self.display_species_html(species_list, data=data)
 
-    def sort_by_formula(self):
+    def update_all_labels(self):
+        """Update species and reaction labels to match Chemkin labels"""
+        for reaction in self.reactions:
+            reaction.label = reaction.toChemkin(kinetics=False)
+        for species in self.species:
+            species.label = getSpeciesIdentifier(species)
+
+    def update_formula_dict(self):
         """Sort species into dictionary by chemical formula"""
         self.formula_dict = {}
         for species in self.species_dict.itervalues():
             formula = species.molecule[0].getFormula()
             self.formula_dict.setdefault(formula, []).append(species)
 
-    @staticmethod
-    def _species_list_to_dict(species_list):
-        """
-        Convert a species list to an ordered species dictionary.
-
-        Re-append the index to the label to restore the original Chemkin name.
-        """
-        species_dict = OrderedDict()
-        for species in species_list:
-            if species.index != -1:
-                species.label += '({0})'.format(species.index)
-            species_dict[species.label] = species
-
-        return species_dict
+    def update_species_dict(self):
+        """Update self.species_dict based on self.species"""
+        self.species_dict = OrderedDict([(species.label, species) for species in self.species])
