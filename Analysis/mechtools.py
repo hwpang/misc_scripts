@@ -244,7 +244,7 @@ class Model(object):
         plt.ylabel('log(k)')
         plt.title(reaction.label)
         plt.legend()
-        plt.show()
+        # plt.show()
 
     def show_reactions(self, item=None, data=False):
         """
