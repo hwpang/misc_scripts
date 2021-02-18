@@ -30,9 +30,13 @@ class Model(object):
     with the ability to display them in an IPython notebook.
     """
 
-    def __init__(self, chem_path=None, dict_path=None):
+    def __init__(self, chem_path=None, dict_path=None, update_labels=None):
         self.chem_path = chem_path
         self.dict_path = dict_path
+        self.update_labels = update_labels
+        self.chemkin_label_dict = dict()
+        self.rmg_label_dict = dict()
+        self.label_index_dict = dict()
 
         self.species = None
         self.reactions = None
@@ -174,6 +178,11 @@ class Model(object):
             self.update_all_labels()
         self.update_species_dict()
         self.update_formula_dict()
+        self.update_label_index_dict()
+
+    def update_label_index_dict(self):
+        for i, spc in enumerate(self.species):
+            self.label_index_dict[spc.label] = i
 
     def load_species(self):
         """
@@ -278,7 +287,11 @@ class Model(object):
         for reaction in self.reactions:
             reaction.label = reaction.to_chemkin(kinetics=False)
         for species in self.species:
-            species.label = getSpeciesIdentifier(species)
+            chemkin_label = get_species_identifier(species)
+            self.chemkin_label_dict[chemkin_label] = species.label
+            self.rmg_label_dict[species.label] = chemkin_label
+            species.label = chemkin_label
+            
 
     def update_formula_dict(self):
         """Sort species into dictionary by chemical formula"""
