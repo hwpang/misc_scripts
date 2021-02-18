@@ -14,7 +14,7 @@ from IPython.display import display, HTML
 import matplotlib.pyplot as plt
 import numpy as np
 
-from rmgpy.chemkin import loadChemkinFile, loadSpeciesDictionary, getSpeciesIdentifier
+from rmgpy.chemkin import load_chemkin_file, load_species_dictionary, get_species_identifier
 from rmgpy.molecule import Molecule
 from rmgpy.species import Species
 
@@ -56,7 +56,7 @@ class Model(object):
                 html += ['<tr><td colspan="{0}" style="text-align:center;">{1}</td>'.format(1, species.label)]
                 html += ['<td colspan="{0}" style="text-align:center;">'
                          '<img style="display:inline;" src="data:image/png;base64,{1}">'
-                         '</td></tr>'.format(1, b64encode(species._repr_png_()))]
+                         '</td></tr>'.format(1, b64encode(species._repr_png_()).decode('utf-8'))]
                 if data:
                     html += ['<tr><td colspan="{0}" style="text-align:left;">{1}</td></tr>'.format(2, species.thermo)]
         html += ['</table>']
@@ -74,7 +74,7 @@ class Model(object):
             html += ['<tr><td colspan="{0}" style="text-align:center;">{1}</td>'.format(1, reaction.label)]
             html += ['<td colspan="{0}" style="text-align:center;">'
                      '<img style="display:inline;" src="data:image/png;base64,{1}">'
-                     '</td></tr>'.format(1, b64encode(reaction._repr_png_()))]
+                     '</td></tr>'.format(1, b64encode(reaction._repr_png_()).decode('utf-8'))]
             if data:
                 html += ['<tr><td colspan="{0}" style="text-align:left;">{1}</td></tr>'.format(2, reaction.kinetics)]
         html += ['</table>']
@@ -91,18 +91,18 @@ class Model(object):
             return self.species_dict[identifier]
         else:
             try:
-                spc = Species(molecule=[Molecule().fromSMILES(identifier)])
+                spc = Species(molecule=[Molecule().from_smiles(identifier)])
             except ValueError:
                 try:
-                    spc = Species(molecule=[Molecule().fromInChI(identifier)])
+                    spc = Species(molecule=[Molecule().from_inchi(identifier)])
                 except ValueError:
                     raise ValueError('Unable to interpret provided identifier {0} as '
                                      'species label, SMILES, or InChI.'.format(identifier))
 
             spc.generate_resonance_structures()
 
-            for species in self.species_dict.itervalues():
-                if spc.isIsomorphic(species):
+            for species in self.species_dict.values():
+                if spc.is_isomorphic(species):
                     return species
             else:
                 raise ValueError('Unable to find any species matching the identifier {0}.'.format(identifier))
@@ -142,7 +142,7 @@ class Model(object):
 
     def get_smiles(self, identifiers):
         """Return list of SMILES based on the provided list of identifiers"""
-        return [species.molecule[0].toSMILES() for species in self.get_species(identifiers)]
+        return [species.molecule[0].to_smiles() for species in self.get_species(identifiers)]
 
     def get_species(self, identifiers):
         """
@@ -169,8 +169,9 @@ class Model(object):
 
     def load_model(self):
         """Load model from Chemkin file"""
-        self.species, self.reactions = loadChemkinFile(self.chem_path, self.dict_path)
-        self.update_all_labels()
+        self.species, self.reactions = load_chemkin_file(self.chem_path, self.dict_path)
+        if self.update_labels:
+            self.update_all_labels()
         self.update_species_dict()
         self.update_formula_dict()
 
@@ -186,7 +187,7 @@ class Model(object):
             for line in f:
                 if line.strip() == '' and adjlist.strip() != '':
                     # Finish this adjacency list
-                    species = Species().fromAdjacencyList(adjlist)
+                    species = Species().from_adjacency_list(adjlist)
                     label = species.label
                     self.species_dict[label] = species
                     adjlist = ''
@@ -194,7 +195,7 @@ class Model(object):
                     adjlist += line
             else:  # reach end of file
                 if adjlist.strip() != '':
-                    species = Species().fromAdjacencyList(adjlist)
+                    species = Species().from_adjacency_list(adjlist)
                     label = species.label
                     self.species_dict[label] = species
 
@@ -219,13 +220,13 @@ class Model(object):
             # Assume its a list or array
             plist = P
 
-        plt.figure()
+        # plt.figure()
 
         x = 1000 / tlist
         for p in plist:
             k = []
             for t in tlist:
-                k.append(reaction.kinetics.getRateCoefficient(t, p))
+                k.append(reaction.kinetics.get_rate_coefficient(t, p))
 
             y = np.log10(k)
             plt.plot(x, y, label='P={0} Pa'.format(p))
@@ -275,15 +276,15 @@ class Model(object):
     def update_all_labels(self):
         """Update species and reaction labels to match Chemkin labels"""
         for reaction in self.reactions:
-            reaction.label = reaction.toChemkin(kinetics=False)
+            reaction.label = reaction.to_chemkin(kinetics=False)
         for species in self.species:
             species.label = getSpeciesIdentifier(species)
 
     def update_formula_dict(self):
         """Sort species into dictionary by chemical formula"""
         self.formula_dict = {}
-        for species in self.species_dict.itervalues():
-            formula = species.molecule[0].getFormula()
+        for species in self.species_dict.values():
+            formula = species.molecule[0].get_formula()
             self.formula_dict.setdefault(formula, []).append(species)
 
     def update_species_dict(self):
