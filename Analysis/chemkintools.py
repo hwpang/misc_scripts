@@ -402,7 +402,7 @@ def load_chemkin_file(path, dictionary_path=None, transport_path=None, read_comm
             spec.index = int(index)
 
     reaction_list.sort(key=lambda reaction: reaction.index)
-    return species_list, reaction_list, formula_dicts
+    return species_list, reaction_list, formula_dict
 
 def _read_kinetics_line(line, reaction, species_dict, Eunits, kunits, klow_units, kinetics):
     """
