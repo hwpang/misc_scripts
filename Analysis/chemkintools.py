@@ -345,7 +345,7 @@ def load_chemkin_file(path, dictionary_path=None, transport_path=None, read_comm
                 # Skip this if a thermo file is specified
                 # Unread the line (we'll re-read it in read_thermo_block())
                 f.seek(previous_line)
-                read_thermo_block(f, species_dict)
+                formula_dict = read_thermo_block(f, species_dict)
 
             elif 'REACTIONS' in line.upper():
                 # Reactions section
@@ -365,7 +365,7 @@ def load_chemkin_file(path, dictionary_path=None, transport_path=None, read_comm
                 line = line.strip()
                 if 'THERM' in line.upper():
                     f.seek(f.tell() - len(line0), os.SEEK_SET)
-                    read_thermo_block(f, species_dict)
+                    formula_dict = read_thermo_block(f, species_dict)
                     break
                 line0 = f.readline()
     # Index the reactions now to have identical numbering as in Chemkin
@@ -402,7 +402,7 @@ def load_chemkin_file(path, dictionary_path=None, transport_path=None, read_comm
             spec.index = int(index)
 
     reaction_list.sort(key=lambda reaction: reaction.index)
-    return species_list, reaction_list
+    return species_list, reaction_list, formula_dicts
 
 def _read_kinetics_line(line, reaction, species_dict, Eunits, kunits, klow_units, kinetics):
     """
